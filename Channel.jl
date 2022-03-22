@@ -20,11 +20,7 @@ V = TestFESpace(model,reffeᵤ,conformity=:H1,labels=labels,dirichlet_tags=["Inl
 
   #reffeₚ = ReferenceFE(lagrangian,Float64,order-1;space=:P)
 reffeₚ = ReferenceFE(lagrangian,Float64,order)
-Q = TestFESpace(model,reffeₚ,conformity=:H1, constraint=:zeromean)
-
-mu = 8.9*10^(-4)
-rho = 10
-nu = mu/rho
+Q = TestFESpace(model,reffeₚ,conformity=:L2, constraint=:zeromean)
 
 u_0 = 10
 Re = 10
@@ -46,7 +42,7 @@ dΩ = Measure(Ωₕ,degree)
 
 
 conv(u,∇u) =(∇u')⋅u
-a((u,p),(v,q)) = ∫( (1/Re)*∇(v)⊙∇(u) - (∇⋅v)*p/rho + q*(∇⋅u) )dΩ
+a((u,p),(v,q)) = ∫( (1/Re)*∇(v)⊙∇(u) - (∇⋅v)*p + q*(∇⋅u) )dΩ
 c(u,v) = ∫( v⊙(conv∘(u,∇(u))) )dΩ
 
 res((u,p),(v,q)) = a((u,p),(v,q)) + c(u,v)

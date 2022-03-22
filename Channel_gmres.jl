@@ -11,10 +11,11 @@ function main_ex4(parts)
   #options = "-ksp_type gmres  --ksp_gmres_haptol 6.993e+06 -ksp_monitor"
   #options = "-snes_type ngmres -pc_type asm -snes_max_it 100 -snes_monitor"
   #options = "-snes_type ncg -snes_monitor"
+  #options = "-ksp_type cg  -ksp_rtol 1.0e-12  -ksp_atol 0.0  -pc_type jacobi"
+  #options = "-ksp_type cg  -ksp_rtol 1  -ksp_atol 0.0  -pc_type jacobi"
 
-  #options = "-snes_type ngmres 	-snes_ngmres_select_type linesearch -snes_ngmres_restart_it 10000 -snes_ngmres_gammaC 1	-snes_ngmres_epsilonB 1 snes_ngmres_deltaB 1 -snes_ngmres_monitor"
-  options = "-snes_type newtonls -snes_linesearch_type basic  -snes_linesearch_damping 1.0 -snes_rtol 1.0e-14 -snes_atol 0.0 -snes_monitor -pc_type jacobi -ksp_type gmres -snes_converged_reason"
-
+  options = "-snes_type ngmres 	-snes_ngmres_select_type linesearch -snes_ngmres_restart_it 10000 -snes_ngmres_gammaC 1	-snes_ngmres_epsilonB 1 snes_ngmres_deltaB 1 -snes_ngmres_monitor"
+  #options = "-snes_type newtonls -snes_linesearch_type basic  -snes_linesearch_damping 1.0 -snes_rtol 1.0e-14 -snes_atol 0.0 -snes_monitor -pc_type jacobi -ksp_type gmres -snes_converged_reason"
   GridapPETSc.with(args=split(options)) do
 
   model = GmshDiscreteModel("Channel_geometry.msh")
@@ -81,16 +82,15 @@ function main_ex4(parts)
   print("6\n")
 
   
-  """
-  nls = NLSolver(
-    show_trace=true, method=:newton, linesearch=BackTracking())
+  
+  nls = NLSolver(PETScLinearSolver(); show_trace=true, method=:newton, linesearch=BackTracking())
 
   solver = FESolver(nls)
- """
+ 
  print("PreSolver ok\n")
-
+"""
  solver = FESolver(PETScNonlinearSolver())
-
+"""
  print("AfterSolver ok\n")
 
   uh, ph = solve(solver,op)
