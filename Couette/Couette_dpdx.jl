@@ -8,8 +8,8 @@ using LineSearches: BackTracking
 Lx=2*pi;
 Ly=2;
 Lz=2/3*pi;
-nx = 15;
-ny = 10;
+nx = 30;
+ny = 40;
 nz = 12;
 domain2d = (0,Lx,-Ly/2,Ly/2)
 partition2d = (nx,ny)
@@ -40,7 +40,7 @@ reffeₚ = ReferenceFE(lagrangian,Float64,order-1)
 Q = TestFESpace(model,reffeₚ,conformity=:L2, constraint=:zeromean)
 h = Ly/2;
 Re = 10
-G = -1;
+G = -0.01;
 nu = 0.0001472;
 u_0 = Re*nu/h;
 
