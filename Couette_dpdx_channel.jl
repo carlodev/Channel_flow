@@ -8,12 +8,12 @@ using LineSearches: BackTracking
 Lx=2*pi;
 Ly=2;
 Lz=2/3*pi;
-nx = 30;
-ny = 40;
+nx = 32;
+ny = 40 ;
 nz = 12;
 domain2d = (0,Lx,-Ly/2,Ly/2)
 partition2d = (nx,ny)
-domain3d = (0,Lx,-Ly/2,Ly/2,-Lz/2,Lz/2,)
+domain3d = (0,Lx,-Ly/2,Ly/2,-Lz/2,Lz/2)
 partition3d = (nx,ny,nz)
 model = CartesianDiscreteModel(domain2d,partition2d, isperiodic=(false,false))
 
@@ -42,9 +42,8 @@ h = Ly/2;
 Re = 10
 G = -0.01;
 nu = 0.0001472;
-#u_0 = Re*nu/h;
-u_0 = 0
-
+u_0 = Re*nu/h;
+u_0=0;
 u_i(x) = VectorValue(u_0*x[2]/h-(h^2)*(1-(x[2]/h)^2)*G, 0)
 #u_i(x) = VectorValue(u_0, 0)
 
@@ -88,4 +87,6 @@ show_trace=true, method=:newton, linesearch=BackTracking())
 
 solver = FESolver(nls)
 uh, ph = solve(solver,op)
-writevtk(Ωₕ,"results-couette-dpdx-ch",cellfields=["uh"=>uh,"ph"=>ph])
+
+ω = ∇×uh;
+writevtk(Ωₕ,"results-couette-dpdx",cellfields=["uh"=>uh,"ph"=>ph, "ω"=>ω])
