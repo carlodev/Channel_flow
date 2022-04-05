@@ -19,7 +19,7 @@ function mesh_channel(; D::Integer, N=32::Integer, parts=1, printmodel=false::Bo
    In dimensions 1 and 3 equally spaced
    In dimension 2 function distributed
    #Arguments
-   - D::Integer number of dimensions (1 or 2)
+   - D::Integer number of dimensions (2 or 3)
    - N::Integer numer of cells in each dimension, deault value N=32
    - parts :: if distributed
    - printmodel::Boolean if true create vtk file pf the model
