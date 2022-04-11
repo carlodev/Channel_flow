@@ -11,11 +11,11 @@ using InteractiveUtils
 using GridapDistributed
 using PartitionedArrays
 
-function mesh_channel(; D::Integer, N=32::Integer, parts=1, printmodel=false::Bool)
+function mesh_channel(; D::Integer, N=32::Integer, parts=1, printmodel=false::Bool, periodic=true)
 
    """
    mesh_channel() generate a mesh for a channel; 
-   Periodic boundaries in dimensions 1 and 3
+   Periodic boundaries in dimensions 1 and 3 if periodic is set
    In dimensions 1 and 3 equally spaced
    In dimension 2 function distributed
    #Arguments
@@ -53,14 +53,14 @@ function mesh_channel(; D::Integer, N=32::Integer, parts=1, printmodel=false::Bo
       pmin = Point(0, -Ly / 2, -Lz / 2)
       pmax = Point(Lx, Ly / 2, Lz / 2)
       partition = (nx, ny, nz)
-      periodic_tuple = (true, false, true)
+      periodic_tuple = (periodic, false, periodic)
       model_name = "model3d"
 
    else
       pmin = Point(0, -Ly / 2)
       pmax = Point(Lx, Ly / 2)
       partition = (nx, ny)
-      periodic_tuple = (true, false)
+      periodic_tuple = (periodic, false)
       model_name = "model2d"
 
    end
