@@ -15,14 +15,15 @@ For D=3, 3d case, wrong velocity results - instability?
 periodic = false # If set to false, will put a uniform velocity u_in at the inlet
 u_in = 1.0
 ν = 0.0005 # Kinematic vicosity
-const D=2; #dimensions number 2 or 3
-const N=32; #cells per dimensions
+D=2; #add const, dimensions number 2 or 3
+N=32; #add const, cells per dimensions
 order = 1
 u_0 = u_in
 
 include("Channel_Mesh.jl")
 
-model=mesh_channel(;D=D, N=N, printmodel=true, periodic)
+model=mesh_channel(;D=D, N=N, printmodel=false, periodic)
+body_force = periodic ? 0.033 : 0.0
 
 @static if D==2
     top = "tag_5"
@@ -48,10 +49,42 @@ model=mesh_channel(;D=D, N=N, printmodel=true, periodic)
     
     body_force = periodic ? 0.033 : 0.0
     hf(x)=VectorValue(body_force, 0)
+    
 elseif D==3
+    top = ["tag_23", "tag_9", "tag_11"] # face right left
+    bottom = ["tag_24", "tag_10", "tag_12"]
+
+    inlet = "tag_05"
+    inlet_corners = ["tag_1", "tag_3", "tag_5", "tag_7"] #topleft bottomleft topright bottomright
+    inlet_sides = ["tag_13", "tag_15", "tag_17", "tag_19"] #left right top bottom
+
+    outlet = "tag_26"
+    outlet_corners = ["tag_2", "tag_4", "tag_6", "tag_8"] #topleft bottomleft topright bottomright
+    outlet_sides = ["tag_14", "tag_16", "tag_18", "tag_20"]
+
+    sides = ["tag_21", "tag_22"] # left right
+
+    u_diri_tags=[top, bottom]
+    u_walls=VectorValue(0, 0, 0)
+    u_in_v = VectorValue(u_in,0, 0)
+
+    u_diri_values = [u_walls, u_walls, u_walls, u_walls, u_walls, u_walls]
+    p_diri_tags=String[]
+    p_diri_values=Float64[]
+    if !periodic
+        append!(u_diri_tags, [inlet], inlet_corners, inlet_sides, outlet_corners, outlet_sides)
+        append!(p_diri_tags, [outlet], outlet_corners, outlet_sides)
+        append!(u_diri_values, [u_in_v, 
+                                u_in_v, u_in_v, u_in_v, u_in_v,
+                                u_in_v, u_in_v, u_in_v, u_in_v, 
+                                u_walls, u_walls, u_walls, u_walls,
+                                u_walls, u_walls, u_walls, u_walls])
+        append!(p_diri_values, [0,0,0])
+    end
+
     u_diri_tags=["tag_24", "tag_23"]
     u_walls=VectorValue(0,0,0)
-    hf(x)=VectorValue(0.0033, 0, 0);
+    hf(x)=VectorValue(body_force, 0, 0)
 end
 
 reffeᵤ = ReferenceFE(lagrangian,VectorValue{D,Float64},order)
@@ -113,7 +146,7 @@ op = FEOperator(res,X,Y)
 nls = NLSolver(show_trace=true, method=:newton, linesearch=MoreThuente(), iterations=30)
 solver = FESolver(nls)
 
-uh0 = interpolate_everywhere(VectorValue(u_0,0.0), U)
+uh0 = interpolate_everywhere(u_in_v, U)
 ph0 = interpolate_everywhere(0.0, P)
 xh0 = interpolate_everywhere([uh0, ph0],MultiFieldFESpace([U,P]))
 @time (uh, ph), _ = solve!(xh0,solver,op)
@@ -124,3 +157,18 @@ println("solve complete")
 
 
 writevtk(Ω,"results-channel-d$D",cellfields=["uh"=>uh,"ph"=>ph, "ω"=>ω])
+
+
+using Plots
+
+nn = 1000
+ev_nodes = LinRange(-0.999, 0.999, nn)
+y =1
+vt(i) = VectorValue(y,i)
+ve(v) = v[1] 
+
+vm = evaluate(uh, vt.(ev_nodes))
+plot(ve.(vm), ev_nodes,  seriestype = :scatter)
+
+
+
