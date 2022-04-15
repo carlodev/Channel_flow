@@ -165,13 +165,17 @@ writevtk(Ω,"results-channel-d$D",cellfields=["uh"=>uh,"ph"=>ph, "ω"=>ω])
 
 using Plots
 
-nn = 100
+nn = 1000
 ev_nodes = LinRange(-0.999, 0.999, nn)
 y =1
 vt(i) = VectorValue(y,i,0)
 ve(v) = v[1] 
 
 vm = evaluate(uh, vt.(ev_nodes))
+using Trapz
+Um = 0.5 * trapz(ev_nodes, ve.(vm))
+
+
 plot(ve.(vm), ev_nodes,  seriestype = :scatter)
 
 
