@@ -53,14 +53,18 @@ function run_channel(parts, N::Int, order::Int)
         u_diri_tags = [top, bottom]
         u_walls(x, t::Real) = VectorValue(0.0, 0.0)
         u_in_v(x, t::Real) = VectorValue(u_in, 0)
-
-        u_diri_values = [u_walls, u_walls]
+        u_walls(t::Real) = x -> u_walls(x, t)
+        u_in_v(t::Real) = x -> u_in_v(x, t)
         p_diri_tags = String[]
         p_diri_values = Float64[]
-        if !periodic
+
+        if periodic
+            u_diri_values = [u_walls, u_walls]
+        else
+
             append!(u_diri_tags, [inlet, inlet_top, inlet_bottom, outlet_top, outlet_bottom])
             append!(p_diri_tags, [outlet, outlet_top, outlet_bottom])
-            append!(u_diri_values, [u_in_v, u_in_v, u_in_v, u_walls, u_walls])
+            u_diri_values = [u_walls, u_walls, u_in_v, u_in_v, u_in_v, u_walls, u_walls]
             append!(p_diri_values, [0, 0, 0])
         end
 
@@ -83,29 +87,33 @@ function run_channel(parts, N::Int, order::Int)
 
         u_diri_tags = append!(top, bottom)
         u_walls(x, t) = VectorValue(0, 0, 0)
-
         u_in_v(x, t::Real) = VectorValue(u_in, 0, 0)
+        u_walls(t::Real) = x -> u_walls(x, t)
+        u_in_v(t::Real) = x -> u_in_v(x, t)
 
-        u_diri_values = [u_walls, u_walls, u_walls, u_walls, u_walls, u_walls]
         p_diri_tags = String[]
         p_diri_values = Float64[]
-        if !periodic
+        if periodic
+            u_diri_values = [u_walls, u_walls, u_walls, u_walls, u_walls, u_walls]
+
+        else
             append!(u_diri_tags, [inlet], inlet_corners, inlet_sides, outlet_corners, outlet_sides)
             append!(p_diri_tags, [outlet], outlet_corners, outlet_sides)
-            append!(u_diri_values, [u_in_v,
+            u_diri_values = [u_walls, u_walls, u_walls, u_walls, u_walls, u_walls,
+                u_in_v,
                 u_in_v, u_in_v, u_in_v, u_in_v,
                 u_in_v, u_in_v, u_in_v, u_in_v,
                 u_walls, u_walls, u_walls, u_walls,
-                u_walls, u_walls, u_walls, u_walls])
+                u_walls, u_walls, u_walls, u_walls]
             append!(p_diri_values, [0, 0, 0])
         end
+
 
 
         hf(x, t::Real) = VectorValue(body_force, 0, 0)
     end
 
-    u_walls(t::Real) = x -> u_walls(x, t)
-    u_in_v(t::Real) = x -> u_in_v(x, t)
+
     hf(t::Real) = x -> hf(x, t)
 
 

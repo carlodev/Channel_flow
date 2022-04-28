@@ -12,17 +12,17 @@ For D=3, 3d case, wrong velocity results - instability?
 """
 
 # Settings
-periodic = true # If set to false, will put a uniform velocity u_in at the inlet
+periodic = false # If set to false, will put a uniform velocity u_in at the inlet
 u_in = 1.0
 ν = 0.0001472 # Kinematic vicosity
-D=3; #add const, dimensions number 2 or 3
-N=32; #add const, cells per dimensions
+D=2; #add const, dimensions number 2 or 3
+N=8; #add const, cells per dimensions
 order = 1
 u_0 = u_in
 
 include("Channel_Mesh.jl")
 
-model=mesh_channel(;D=D, N=N, printmodel=true, periodic)
+model=mesh_channel(;D=D, N=N, printmodel=false, periodic)
 body_force = periodic ? 0.00337204 : 0.0
 
 @static if D==2
@@ -36,15 +36,19 @@ body_force = periodic ? 0.00337204 : 0.0
     inlet_bottom = "tag_3"
     u_diri_tags=[top, bottom]
     u_walls(x, t::Real)=VectorValue(0.0, 0.0)
-    u_in_v(x, t::Real) = VectorValue(u_in, 0)
-
-    u_diri_values = [u_walls, u_walls]
+    u_in_v(x, t::Real) = VectorValue(u_in, 0.0)
+    u_walls(t::Real) = x -> u_walls(x, t)
+    u_in_v(t::Real) = x -> u_in_v(x, t)
     p_diri_tags=String[]
     p_diri_values=Float64[]
-    if !periodic
+
+    if periodic
+    u_diri_values = [u_walls, u_walls]
+    else
+
         append!(u_diri_tags, [inlet, inlet_top, inlet_bottom, outlet_top, outlet_bottom])
         append!(p_diri_tags, [outlet,outlet_top,outlet_bottom])
-        append!(u_diri_values, [u_in_v, u_in_v, u_in_v, u_walls, u_walls])
+        u_diri_values = [u_walls, u_walls, u_in_v, u_in_v, u_in_v, u_walls, u_walls]
         append!(p_diri_values, [0, 0, 0])
     end
     
@@ -66,21 +70,25 @@ elseif D==3
     sides = ["tag_21", "tag_22"] # left right
 
     u_diri_tags=append!(top, bottom)
-    u_walls(x, t) = VectorValue(0, 0, 0)
-    
+    u_walls(x, t) = VectorValue(0, 0, 0)    
     u_in_v(x, t::Real) = VectorValue(u_in, 0, 0)
+    u_walls(t::Real) = x -> u_walls(x, t)
+    u_in_v(t::Real) = x -> u_in_v(x, t)
 
-    u_diri_values = [u_walls, u_walls, u_walls, u_walls, u_walls, u_walls]
     p_diri_tags=String[]
     p_diri_values=Float64[]
-    if !periodic
+    if periodic
+    u_diri_values = [u_walls, u_walls, u_walls, u_walls, u_walls, u_walls]
+
+    else
         append!(u_diri_tags, [inlet], inlet_corners, inlet_sides, outlet_corners, outlet_sides)
         append!(p_diri_tags, [outlet], outlet_corners, outlet_sides)
-        append!(u_diri_values, [u_in_v, 
+        u_diri_values = [u_walls, u_walls, u_walls, u_walls, u_walls, u_walls,
+                                u_in_v, 
                                 u_in_v, u_in_v, u_in_v, u_in_v,
                                 u_in_v, u_in_v, u_in_v, u_in_v, 
                                 u_walls, u_walls, u_walls, u_walls,
-                                u_walls, u_walls, u_walls, u_walls])
+                                u_walls, u_walls, u_walls, u_walls]
         append!(p_diri_values, [0,0,0])
     end
 
@@ -88,8 +96,7 @@ elseif D==3
     hf(x, t::Real)=VectorValue(body_force, 0, 0)
 end
 
-u_walls(t::Real) = x -> u_walls(x, t)
-u_in_v(t::Real) = x -> u_in_v(x, t)
+
 hf(t::Real) = x -> hf(x, t)
 
 
@@ -172,7 +179,7 @@ uh0 = interpolate_everywhere(u_in_v(0), U0)
 ph0 = interpolate_everywhere(0.0, P0)
 xh0 = interpolate_everywhere([uh0, ph0],X0)
 t0 = 0.0
-tF = 50
+tF = 0.6
 dt = 0.2
 θ = 0.5
 

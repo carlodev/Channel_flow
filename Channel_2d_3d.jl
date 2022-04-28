@@ -12,17 +12,17 @@ For D=3, 3d case, wrong velocity results - instability?
 """
 
 # Settings
-periodic = true # If set to false, will put a uniform velocity u_in at the inlet
+periodic = false # If set to false, will put a uniform velocity u_in at the inlet
 u_in = 1.0
 ν = 0.0001472 # Kinematic vicosity
-D=3; #add const, dimensions number 2 or 3
+D=2; #add const, dimensions number 2 or 3
 N=32; #add const, cells per dimensions
 order = 1
 u_0 = u_in
 
 include("Channel_Mesh.jl")
 
-model=mesh_channel(;D=D, N=N, printmodel=true, periodic)
+model=mesh_channel(;D=D, N=N, printmodel=false, periodic)
 body_force = periodic ? 0.00337204 : 0.0
 
 @static if D==2
@@ -36,7 +36,7 @@ body_force = periodic ? 0.00337204 : 0.0
     inlet_bottom = "tag_3"
     u_diri_tags=[top, bottom]
     u_walls=VectorValue(0.0,0.0)
-    u_in_v = VectorValue(u_in,0.0)
+    u_in_v = VectorValue(u_in, 0.0)
     u_diri_values = [u_walls, u_walls]
     p_diri_tags=String[]
     p_diri_values=Float64[]
@@ -66,7 +66,7 @@ elseif D==3
 
     u_diri_tags=append!(top, bottom)
     u_walls=VectorValue(0, 0, 0)
-    u_in_v = VectorValue(u_in,0, 0)
+    u_in_v= VectorValue(u_in, 0, 0)
 
     u_diri_values = [u_walls, u_walls, u_walls, u_walls, u_walls, u_walls]
     p_diri_tags=String[]
