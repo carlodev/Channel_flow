@@ -14,7 +14,14 @@ using InteractiveUtils
 using GridapDistributed
 using PartitionedArrays
 
-export mesh_channel
+export mesh_channel, h_cell
+
+
+function stretching_y_function(x)
+   gamma1 = 2.5
+   -tanh.(gamma1 .* (x)) ./ tanh.(gamma1)
+end
+
 
 function mesh_channel(;D::Integer, N=32::Integer, parts=1, printmodel=false::Bool, periodic=true)
 
@@ -46,8 +53,8 @@ function mesh_channel(;D::Integer, N=32::Integer, parts=1, printmodel=false::Boo
       m = zeros(length(x))
       m[1] = x[1]
 
-      gamma1 = 2.5
-      m[2] = -tanh(gamma1 * (x[2])) / tanh(gamma1)
+      
+      m[2] = stretching_y_function(x[2])
       if length(x) > 2
          m[3] = x[3]
       end
@@ -55,6 +62,7 @@ function mesh_channel(;D::Integer, N=32::Integer, parts=1, printmodel=false::Boo
    end
 
    if D > 2
+      domain = (0, Lx, -Ly/2, Ly/2, -Lz/2, Lz/2)
       pmin = Point(0, -Ly / 2, -Lz / 2)
       pmax = Point(Lx, Ly / 2, Lz / 2)
       partition = (nx, ny, nz)
@@ -62,6 +70,7 @@ function mesh_channel(;D::Integer, N=32::Integer, parts=1, printmodel=false::Boo
       model_name = "model3d"
 
    else
+      domain = (0, Lx, -Ly/2, Ly/2)
       pmin = Point(0, -Ly / 2)
       pmax = Point(Lx, Ly / 2)
       partition = (nx, ny)
@@ -72,9 +81,11 @@ function mesh_channel(;D::Integer, N=32::Integer, parts=1, printmodel=false::Boo
 
    #partition = Tuple(Fill(N, D))
    if parts != 1
-   model = CartesianDiscreteModel(parts, pmin, pmax, partition, map=stretching, isperiodic=periodic_tuple)
+   #model = CartesianDiscreteModel(parts, pmin, pmax, partition, map=stretching, isperiodic=periodic_tuple)
+   model = CartesianDiscreteModel(parts, domain, partition, map=stretching, isperiodic=periodic_tuple)
    else
-      model = CartesianDiscreteModel(pmin, pmax, partition, map=stretching, isperiodic=periodic_tuple)
+      model = CartesianDiscreteModel(domain, partition, map=stretching, isperiodic=periodic_tuple)
+      #model = CartesianDiscreteModel(pmin, pmax, partition, map=stretching, isperiodic=periodic_tuple)
    end
 
    if printmodel
@@ -83,7 +94,46 @@ function mesh_channel(;D::Integer, N=32::Integer, parts=1, printmodel=false::Boo
    return   model
 end
 
+function h_cell(N,D)
+   Ly = 2
+   x = LinRange(-Ly/2, Ly/2, N+1)
+   y = zeros(N+1)
+   h = zeros(N)
+   h0 = zeros(N^D)
+   
 
+   for i = 1:1:N+1
+      y[i]= stretching_y_function(x[i])
+  
+  end
+   h = y[1:end-1]-y[2:end]
+   
+
+ if D==2
+ 
+  for i = 1:1:N
+   node_end = i*N
+   node_start = node_end-N+1
+   h0[node_start:node_end] = h[i].*ones(N)
+  end
+
+   elseif D==3
+
+      node_end = N:N:N^3
+      node_start = 1:N:N^3
+      for i = 1:1:N
+         for j = 1:1:N
+         node_end0 = node_end[(i-1)*N+j]
+         node_start0 = node_start[(i-1)*N+j]
+         h0[node_start0:node_end0] = h[j].*ones(N)
+         end
+        end
+   end
+
+
+return h0
+
+end
 
 
 

@@ -12,7 +12,7 @@ For D=3, 3d case, wrong velocity results - instability?
 """
 
 # Settings
-periodic = false # If set to false, will put a uniform velocity u_in at the inlet
+periodic = true # If set to false, will put a uniform velocity u_in at the inlet
 u_in = 1.0
 ν = 0.0001472 # Kinematic vicosity
 D=2; #add const, dimensions number 2 or 3
@@ -190,6 +190,8 @@ sol_t = solve(ode_solver, op, xh0, t0, tF)
 
 
 _t_nn = t0
+
+
 createpvd("Channel2d_td") do pvd
   for (xh_tn, tn) in sol_t
     global _t_nn

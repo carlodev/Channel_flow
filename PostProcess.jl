@@ -6,9 +6,9 @@ using LaTeXStrings
 
 DNS = DataFrame(XLSX.readtable("Bazilev_Channel_DNS.xlsx", "Sheet1")...)
 @load "Channel_3d_station.jld2"
+@load "V_mean.jld2"
 
-
-
+plot(V_mean[:,1], y_coord)
 
 Ret = 395
 ν = 0.0001472

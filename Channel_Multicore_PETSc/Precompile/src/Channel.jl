@@ -1,29 +1,37 @@
-module Channel
+#module Channel
 
 using Gridap
-using Gridap.FESpaces
-using Gridap.ReferenceFEs
-using Gridap.Arrays
-using Gridap.Geometry
-using Gridap.Fields
-using Gridap.CellData
+#using Gridap.FESpaces
+#using Gridap.ReferenceFEs
+#using Gridap.Arrays
+#using Gridap.Geometry
+#using Gridap.Fields
+#using Gridap.CellData
 using GridapPETSc
 using FillArrays
 using InteractiveUtils
 using GridapDistributed
 using PartitionedArrays
+using Statistics
+using LineSearches: BackTracking, Static, MoreThuente
+
 
 include("MeshChannel.jl")
-using .MeshChannel: mesh_channel
+using .MeshChannel: mesh_channel, h_cell
 
+# Settings
 periodic = true # If set to false, will put a uniform velocity u_in at the inlet
 u_in = 1.0
 ν = 0.0001472 # Kinematic vicosity
-D = 3 #add const, dimensions number 2 or 3
-#N = 32 #add const, cells per dimensions
-#order = 1
-#np = 4
+D = 2 #add const, dimensions number 2 or 3
+N = 8 #add const, cells per dimensions
+order = 1
+u_0 = u_in
 
+
+
+
+"""
 function main(N::Int, order::Int, np::Int)
     prun(mpi, (1, np, 1)) do parts
         options = "-snes_type newtonls -snes_linesearch_type basic  -snes_linesearch_damping 1.0 -snes_rtol 1.0e-12 -snes_atol 0.0 -snes_monitor -ksp_error_if_not_converged true -ksp_converged_reason -ksp_type preonly -pc_type lu -pc_factor_mat_solver_type mumps"
@@ -32,13 +40,17 @@ function main(N::Int, order::Int, np::Int)
         end
     end
 end
+"""
 
 
-function run_channel(parts, N::Int, order::Int)
 
-    u_0 = u_in
+#function run_channel(parts, N::Int, order::Int)
+function run_channel(parts)
+
 
     model = mesh_channel(; D=D, N=N, parts=parts, printmodel=true, periodic=periodic)
+    #model = mesh_channel(; D=D, N=N, printmodel=false, periodic=periodic)
+
     body_force = periodic ? 0.00337204 : 0.0
 
     @static if D == 2
@@ -152,8 +164,9 @@ function run_channel(parts, N::Int, order::Int)
     # Continuity residual
     Rc(u) = ∇ ⋅ u
 
-    h = lazy_map(h -> h^(1 / 2), get_cell_measure(Ω))
-
+    #h = lazy_map(h -> h^(1 / 2), get_cell_measure(Ω))
+    h = h_cell(N, D)'
+    
     function τ(u, h)
 
         τ₂ = h^2 / (4 * ν)
@@ -179,17 +192,17 @@ function run_channel(parts, N::Int, order::Int)
         + q * Rc(u)
     )dΩ # Continuity
     stab_equations(t, (u, p), (v, q)) = ∫((τ ∘ (u, h) * (u ⋅ ∇(v) + ∇(q))) ⊙ Rm(t, (u, p)) # First term: SUPG, second term: PSPG
-                                          +
-                                          τb ∘ (u, h) * (∇ ⋅ v) ⊙ Rc(u) # Bulk viscosity. Try commenting out both stabilization terms to see what happens in periodic and non-periodic cases
+                                          #+ τb ∘ (u, h) * (∇ ⋅ v) ⊙ Rc(u) # Bulk viscosity. Try commenting out both stabilization terms to see what happens in periodic and non-periodic cases
     )dΩ
 
     res(t, (u, p), (v, q)) = var_equations(t, (u, p), (v, q)) + stab_equations(t, (u, p), (v, q))
     op = TransientFEOperator(res, X, Y)
 
-    ls = PETScLinearSolver()
-    nls = NLSolver(ls, show_trace=true, method=:newton, iterations=10)
+    #ls = PETScLinearSolver()
+    #nls = NLSolver(ls, show_trace=true, method=:newton, iterations=10)
+    nls = NLSolver(show_trace=true, method=:newton, linesearch=MoreThuente(), iterations=30)
 
-    solver = FESolver(nls)
+    #solver = FESolver(nls)
 
     U0 = U(0.0)
     P0 = P(0.0)
@@ -198,29 +211,36 @@ function run_channel(parts, N::Int, order::Int)
     uh0 = interpolate_everywhere(u_in_v(0), U0)
     ph0 = interpolate_everywhere(0.0, P0)
     xh0 = interpolate_everywhere([uh0, ph0], X0)
+
+    #   ODE setting
     t0 = 0.0
     tF = 0.6
     dt = 0.2
     θ = 0.5
 
     ode_solver = ThetaMethod(nls, dt, θ)
-
+    
 
     sol_t = solve(ode_solver, op, xh0, t0, tF)
 
 
-    _t_nn = t0
-    createpvd("Channel2d_td") do pvd
+    #_t_nn = t0
+    createpvd(parts, "Channel2d_td") do pvd
         for (xh_tn, tn) in sol_t
-            global _t_nn
-            _t_nn += dt
+            #global _t_nn
+            #_t_nn += dt
             uh_tn = xh_tn[1]
             ω = ∇ × uh_tn
             ph_tn = xh_tn[2]
-            pvd[tn] = createvtk(Ω, "Results/Channel_2d_$_t_nn" * ".vtu", cellfields=["uh" => uh_tn, "ω" => ω, "ph" => ph_tn])
+            pvd[tn] = createvtk(Ω, "Results/Channel_2d_$tn" * ".vtu"; cellfields=["uh" => uh_tn, "ω" => ω, "ph" => ph_tn])
         end
 
     end
 end
 
-end
+#end
+
+partition = (2, 2)
+prun(run_channel, mpi, partition)
+
+#mpiexecjl --project=. -n 4 julia Channel.jl

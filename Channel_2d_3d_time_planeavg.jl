@@ -1,6 +1,9 @@
 using Gridap
 using LineSearches: BackTracking, Static, MoreThuente
 using Statistics
+
+include("MeshChannel.jl")
+using .MeshChannel: mesh_channel, h_cell
 """
 2D and 3D channel flow
 laminar - vorticity ω extracted
@@ -17,13 +20,14 @@ u_in = 1.0
 ν = 0.0001472 # Kinematic vicosity
 Reτ = 395
 D = 3; #add const, dimensions number 2 or 3
-N = 32; #add const, cells per dimensions
+N = 64; #add const, cells per dimensions
 order = 1
 u_0 = u_in
 
-include("Channel_Mesh.jl")
 
-model = mesh_channel(; D=D, N=N, printmodel=false, periodic)
+
+
+model = mesh_channel(; D=D, N=N, printmodel=true, periodic)
 body_force = periodic ? 0.00337204 : 0.0
 
 @static if D == 2
@@ -136,8 +140,8 @@ Rm(t, (u, p)) = ∂t(u) + u ⋅ ∇(u) + ∇(p) - hf(t)
 # Continuity residual
 Rc(u) = ∇ ⋅ u
 
-h = lazy_map(h -> h^(1 / 2), get_cell_measure(Ω))
-
+h = lazy_map(h -> h^(1 / D), get_cell_measure(Ω))
+h = h = h_cell(N,D)
 function τ(u, h)
 
     τ₂ = h^2 / (4 * ν)
@@ -185,7 +189,7 @@ t0 = 0.0
 dt = 0.03 #Colmes 
 Nt = 25000
 Ntc = 5000
-tF = (Nt + Ntc) * dt
+tF = 10*dt #(Nt + Ntc) * dt
 
 θ = 0.5
 
@@ -195,32 +199,10 @@ ode_solver = ThetaMethod(nls, dt, θ)
 sol_t = solve(ode_solver, op, xh0, t0, tF)
 
 
-_t_nn = t0
-
-"""
-createpvd("Channel2d_td") do pvd
-  for (xh_tn, tn) in sol_t
-    global _t_nn
-    _t_nn += dt
-    uh_tn = xh_tn[1]
-    ω = ∇ × uh_tn
-    ph_tn = xh_tn[2]
-    pvd[tn] = createvtk(Ω, "Results/Channel_2d_$_t_nn" * ".vtu", cellfields=["uh" => uh_tn, "ω" => ω, "ph" => ph_tn])
-  end
-
-end
-"""
 
 #Extract Node in for y=const
-if D == 2
-    num_nodes_plane = N + 1
-elseif D == 3
-    num_nodes_plane = (N + 1) * (N + 1)
-end
-model_nodes = DiscreteModel(Polytope{0}, model)
-y_coord = Vector{Float64}(undef, N + 1)
-y_coord[1] = planes_nodes[1][2]
-
+model_nodes = DiscreteModel(Polytope{0},model)
+y_coord = zeros(N+1)
 #2D
 if D == 2
     num_nodes_plane = (N + 1)
@@ -266,12 +248,12 @@ if D == 3
 end
 
 
-"""
+
 #Testing that extraction is correct
 planes_nodes
 y_coord
 planes_nodes[:, 5]
-
+"""
 for i = 1:1:N+1
     for j = 2:1:num_nodes_plane
         print("i = $i, j = $j\n")
@@ -283,10 +265,16 @@ end
 
 
 
-
-V_mean = zeros(Float64, floor(Int, N / 2) + 1, D) #V_mean in each plane, for symmetry only half of the channel value extracted
-Δc = 1 / Ntc
+V_mean = zeros(Float64, N+ 1, D) #V_mean in each plane
+Δc = 1/10 #1 / Ntc
 nstep = 0;
+_t_nn = t0 
+if D==2
+    ve(v) = [v[1], v[2]]
+elseif D==3
+    ve(v) = [v[1], v[2], v[3]]
+end
+
 createpvd("Channel3d_td") do pvd
 
     for (xh_tn, tn) in sol_t
@@ -294,50 +282,48 @@ createpvd("Channel3d_td") do pvd
         _t_nn += dt
         global nstep
         nstep += 1
-
-
+        print("iteration = $nstep\n")
+        
         uh_tn = xh_tn[1]
         ω = ∇ × uh_tn
         ph_tn = xh_tn[2]
-
-        if mod(nstep, 100) < 1
+        
+        #if mod(nstep, 100) < 1
             pvd[tn] = createvtk(Ω, "Results/Channel_2d_$_t_nn" * ".vtu", cellfields=["uh" => uh_tn, "ω" => ω, "ph" => ph_tn])
-        end
-
-        if nstep >= Nc #Channel turbulence devoped
-
-            for p = 2:1:floor(Int, N / 2)+1
+        #end
+        
+        #if nstep > Nt #Channel turbulence devoped
+        if D==2
+            for p = 2:1:N
                 pl_value = evaluate(uh_tn, planes_nodes[:, p])
                 M = zeros(Float64, num_nodes_plane, D)
-                ve(v) = [v[1], v[2], v[3]]
+                for i = 1:1:num_nodes_plane
+                    M[i, :] = ve(pl_value[i])
+                end
+                V_mean[p, :] = V_mean[p, :]' + Δc .* mean!([1.0 1.0], M)
+
+            end
+        elseif D==3
+            for p = 2:1:N
+                pl_value = evaluate(uh_tn, planes_nodes[:, p])
+                M = zeros(Float64, num_nodes_plane, D)
                 for i = 1:1:num_nodes_plane
                     M[i, :] = ve(pl_value[i])
                 end
                 V_mean[p, :] = V_mean[p, :]' + Δc .* mean!([1.0 1.0 1.0], M)
 
             end
+
         end
+        #end
 
     end
 end
 
+
+V_mean
 println("solve complete")
 
-
-#writevtk(Ω,"results-channel-d$D",cellfields=["uh"=>uh,"ph"=>ph, "ω"=>ω])
-
-"""
-using Plots
-
-nn = 100
-ev_nodes = LinRange(-0.999, 0.999, nn)
-y =1
-vt(i) = VectorValue(y,i,0)
-ve(v) = v[1] 
-
-vm = evaluate(uh, vt.(ev_nodes))
-plot(ve.(vm), ev_nodes,  seriestype = :scatter)
-"""
-
-
+using JLD2
+@save "V_mean.jld2" V_mean y_coord
 
