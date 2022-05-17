@@ -141,7 +141,7 @@ Rm(t, (u, p)) = ∂t(u) + u ⋅ ∇(u) + ∇(p) - hf(t)
 Rc(u) = ∇ ⋅ u
 
 h = lazy_map(h -> h^(1 / D), get_cell_measure(Ω))
-h = h = h_cell(N,D)
+h  = h_cell(N,D)
 function τ(u, h)
 
     τ₂ = h^2 / (4 * ν)
@@ -189,7 +189,7 @@ t0 = 0.0
 dt = 0.03 #Colmes 
 Nt = 25000
 Ntc = 5000
-tF = 10*dt #(Nt + Ntc) * dt
+tF = 100*dt #(Nt + Ntc) * dt
 
 θ = 0.5
 
@@ -220,11 +220,11 @@ end
 if D == 3
     planes_nodes = model_nodes.grid.node_coordinates[1:N+1]
     num_nodes_plane = (N + 1) * (N + 1)
+    y_coord[1] = model_nodes.grid.node_coordinates[1][2]
     for k = 2:1:N+1
         node_start2 = (k - 1) * num_nodes_plane + 1
         node_end2 = node_start2 + N
         planey2 = model_nodes.grid.node_coordinates[node_start2:node_end2]
-        print(planey2)
         planes_nodes = vcat(planes_nodes, planey2)
     end
 
@@ -266,7 +266,7 @@ end
 
 
 V_mean = zeros(Float64, N+ 1, D) #V_mean in each plane
-Δc = 1/10 #1 / Ntc
+Δc = 1/100 #1 / Ntc
 nstep = 0;
 _t_nn = t0 
 if D==2
